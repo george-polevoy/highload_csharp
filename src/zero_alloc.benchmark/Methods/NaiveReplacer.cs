@@ -21,11 +21,6 @@ namespace Methods
         {
             return new NaiveReplacer(_replacements);
         }
-
-        public NaiveReplacer2 BuildReplacer2()
-        {
-            return new NaiveReplacer2(_replacements);
-        }
     }
 
     public class NaiveReplacer : IReplace
@@ -45,27 +40,8 @@ namespace Methods
             return string
                 .Join(' ', source
                     .Split(' ')
-                    .Select(token => _replacements.TryGetValue(new string(token.ToCharArray()), out var replaced) ? replaced : token)
+                    .Select(token => _replacements.TryGetValue(token, out var replaced) ? replaced : token)
                 );
-        }
-    }
-
-    public class NaiveReplacer2 : IReplace
-    {
-        private Dictionary<string, string> _replacements;
-
-        public NaiveReplacer2(Dictionary<string, string> replacements)
-        {
-            _replacements = replacements;
-        }
-        public string Replace(string source)
-        {
-            foreach (var kvp in _replacements)
-            {
-                var key = new string(kvp.Key.ToCharArray());
-                source = source.Replace(key, kvp.Value);
-            }
-            return source;
         }
     }
 }

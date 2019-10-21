@@ -21,7 +21,7 @@ namespace Methods
         public void Replace(ReadOnlyMemory<char> source, Memory<char> buf)
         {
             int begin = 0;
-            var splitter = new SplitterExtensions.SplitEnumerator(source);
+            var splitter = new SplitterExtensions.SplitEnumerator(source.Span);
             while (splitter.MoveNext())
             {
                 var range = splitter.Current;

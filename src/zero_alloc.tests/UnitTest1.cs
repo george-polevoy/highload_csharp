@@ -34,7 +34,14 @@ namespace zero_alloc.tests
 
         private static IReadOnlyList<string> Split(string source)
         {
-            return source.AsMemory().GetSplitRanges().Select(i => source.Substring(i.begin, i.end - i.begin)).ToList();
+            var l = new List<string>(100);
+            var split = new SplitterExtensions.SplitEnumerator(source.AsSpan());
+            while (split.MoveNext())
+            {
+                var (begin, end) = split.Current;
+                l.Add(source.Substring(begin, end - begin));
+            }
+            return l;
         }
     }
 }

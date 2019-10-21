@@ -16,12 +16,12 @@ using System.Threading;
         const int NumJobs = 500;
         private int _numJobsLeft;
 
-        double correlation_factor = 2.11;
-
+        // double correlation_factor = 2.11;
+        private double correlation_factor = 1.0;
+        
         [Params(1, 2, 3, 4, 5, 6, 7, 8)]
         public int NumThreads { get; set; }
         private IReplace NaiveReplacer;
-        private IReplace NaiveReplacer2;
         private ZeroAllocReplacer ZeroAllocReplacer;
         private string source;
         private ReadOnlyMemory<char> _sourceMemory;
@@ -42,7 +42,6 @@ using System.Threading;
                 replacerBuilder.Add(x, "replaced");
             }
             NaiveReplacer = replacerBuilder.BuildReplacer();
-            NaiveReplacer2 = replacerBuilder.BuildReplacer2();
             ZeroAllocReplacer = new ZeroAllocReplacer(replacements);
             _numJobsLeft = NumJobs;
         }
@@ -69,7 +68,7 @@ using System.Threading;
                 from b in new[] {"a", "b", "c", "d", "e", "f"}
                 from c in new[] {"a", "b", "c", "d", "e", "f"}
                 from d in new[] {"a", "b", "c", "d", "e", "f"}
-                select a + b + c + d;
+                select string.Join("", Enumerable.Repeat(a + b + c + d, 8));
         }
 
         void FisherYatesShuffle<T>(T[] a, Random r) {
@@ -92,11 +91,9 @@ using System.Threading;
             .Range(0, NumThreads)
             .Select(ti => Task.Factory.StartNew(() =>
             {
-                T last = default(T);
-
+                T last = default;
                 var buffer = new Memory<char>(new char[1024 * 100]);
-
-                var realJobSize = (int)((double)JobSize * correlation_factor);
+                var realJobSize = (int)(JobSize * correlation_factor);
                 while (Interlocked.Decrement(ref _numJobsLeft) > 0)
                 {
                     for (var i = 0; i < realJobSize; i++) {

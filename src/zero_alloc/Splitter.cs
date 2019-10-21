@@ -5,10 +5,10 @@ namespace zero_alloc
 {
     public static class SplitterExtensions
     {
-        public struct SplitEnumerator
+        public ref struct SplitEnumerator
         {
-            private ReadOnlyMemory<char> _source;
-            public SplitEnumerator(ReadOnlyMemory<char> source)
+            private ReadOnlySpan<char> _source;
+            public SplitEnumerator(ReadOnlySpan<char> source)
             {
                 _source = source;
                 _begin = -1;
@@ -32,10 +32,19 @@ namespace zero_alloc
                 }
                 _end = _begin;
 
-                while (_end < _source.Length && _source.Span[_end] != ' ')
+                var found = _source.Slice(_end).IndexOf(' ');
+                if (found != -1)
                 {
-                    _end++;
+                    _end += found;
                 }
+                else
+                {
+                    _end = _source.Length;
+                }
+//                while (_end < _source.Length && _source[_end] != ' ')
+//                {
+//                    _end++;
+//                }
 
                 return true;
             }
