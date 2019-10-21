@@ -21,35 +21,44 @@ using System.Threading;
         
         [Params(1, 2, 3, 4, 5, 6, 7, 8)]
         public int NumThreads { get; set; }
-        private IReplace NaiveReplacer;
-        private ZeroAllocReplacer ZeroAllocReplacer;
-        private string source;
+        private NaiveReplacer _naiveReplacer;
+        private ZeroAllocReplacer _zeroAllocReplacer;
+        private string _source;
         private ReadOnlyMemory<char> _sourceMemory;
         [GlobalSetup]
         public void Setup()
         {
             var words = GenerateManyUnique().Take(NumWords).ToArray();
-            var replacerBuilder = new NaiveReplacerBuilder();
-            var replacements = new Dictionary<string, string>();
-            source = string.Join(' ', words);
-            _sourceMemory = source.AsMemory();
+            _source = string.Join(' ', words);
+            _sourceMemory = _source.AsMemory();
             var r = new Random(NumWords + PercentReplaced);
             FisherYatesShuffle(words, r);
-            var replaced = words.Take(NumWords * PercentReplaced / 100).ToArray();
-            foreach (var x in replaced)
+         
+            _naiveReplacer = new NaiveReplacer(token =>
+                token.StartsWith("a") ? token.Length + token : token);
+            
+            _zeroAllocReplacer = new ZeroAllocReplacer((dst, src) =>
             {
-                replacements.Add(x, "replaced");
-                replacerBuilder.Add(x, "replaced");
-            }
-            NaiveReplacer = replacerBuilder.BuildReplacer();
-            ZeroAllocReplacer = new ZeroAllocReplacer(replacements);
+                var len = src.Length;
+                if (src.StartsWith("a"))
+                {
+                    if (!len.TryFormat(dst, out var charsWritten))
+                    {
+                        throw new ArgumentException("Destination is shorter than needed");
+                    }
+                    dst = dst.Slice(charsWritten);
+                }
+                src.CopyTo(dst);
+                dst = dst.Slice(src.Length);
+                return dst;
+            });
             _numJobsLeft = NumJobs;
         }
 
         [Benchmark(Baseline = true)]
         public string NaiveReplace()
         {
-            return MultithreadedBench(buffer=> NaiveReplacer.Replace(source), 1.0);
+            return MultithreadedBench(buffer=> _naiveReplacer.Replace(_source), 1.0);
         }
 
         [Benchmark]
@@ -57,14 +66,14 @@ using System.Threading;
         {
             return MultithreadedBench(buffer=>
             {
-                ZeroAllocReplacer.Replace(_sourceMemory, buffer);
+                _zeroAllocReplacer.Replace(_sourceMemory.Span, buffer);
                 return "";
             }, correlation_factor);
         }
 
         private IEnumerable<string> GenerateManyUnique() {
             return
-                from a in new[] {"a", "b", "c", "d", "e", "f"}
+                from a in new[] {"a", "b"}
                 from b in new[] {"a", "b", "c", "d", "e", "f"}
                 from c in new[] {"a", "b", "c", "d", "e", "f"}
                 from d in new[] {"a", "b", "c", "d", "e", "f"}
@@ -112,12 +121,26 @@ using System.Threading;
     {
         static void Main(string[] args)
         {
-            var replacerBuilder = new NaiveReplacerBuilder();
-            replacerBuilder.Add("Hello", "Good bye");
-            replacerBuilder.Add("World", "hell");
-            var replacer = replacerBuilder.BuildReplacer();
-            Console.WriteLine(replacer.Replace("Hello World!"));
-
             var summary = BenchmarkRunner.Run<ReplacerBenchmark>();
         }
     }
+
+
+public class NaiveReplacer
+{
+    private readonly Func<string, string> _transform;
+
+    internal NaiveReplacer(Func<string, string> transform)
+    {
+        _transform = transform ?? throw new ArgumentNullException(nameof(transform));
+    }
+
+    public string Replace(string source)
+    {
+        return string
+            .Join(' ', source
+                .Split(' ')
+                .Select(token => _transform(token))
+            );
+    }
+}

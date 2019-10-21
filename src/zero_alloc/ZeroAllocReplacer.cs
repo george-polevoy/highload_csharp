@@ -1,38 +1,33 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using zero_alloc;
 
 namespace Methods
 {
     public class ZeroAllocReplacer
     {
-        private Dictionary<ReadOnlyMemory<char>, ReadOnlyMemory<char>> _replacements;
+        /// <summary>
+        /// TransformDelegate writes transformed token and returns slice of destination starting from the end of written chunk.
+        /// </summary>
+        /// <param name="destination">Destination to write to.</param>
+        /// <param name="token">Token to transform.</param>
+        public delegate Span<char> TransformDelegate(Span<char> destination, ReadOnlySpan<char> token);
 
-        public ZeroAllocReplacer(IDictionary<string, string> replacements)
+        private TransformDelegate _transform;
+        
+        public ZeroAllocReplacer(TransformDelegate transform)
         {
-            _replacements = new Dictionary<ReadOnlyMemory<char>, ReadOnlyMemory<char>>();
-            foreach (var replacement in replacements)
-            {
-                _replacements.Add(replacement.Key.AsMemory(), replacement.Value.AsMemory());
-            }
+            _transform = transform;
         }
 
-        public void Replace(ReadOnlyMemory<char> source, Memory<char> buf)
+        public void Replace(ReadOnlySpan<char> source, Memory<char> buf)
         {
-            int begin = 0;
-            var splitter = new SplitterExtensions.SplitEnumerator(source.Span);
+            var rest = buf.Span;
+            var splitter = new SplitterExtensions.SplitEnumerator(source);
             while (splitter.MoveNext())
             {
                 var range = splitter.Current;
                 var token = source[range.Begin..range.End];
-                var chunk = _replacements
-                    .TryGetValue(token, out var replaced)
-                    ? replaced
-                    : token;
-                    
-                chunk.CopyTo(buf[begin..]);
-                begin += chunk.Length;
+                rest = _transform(rest, token);
             }
         }
     }
