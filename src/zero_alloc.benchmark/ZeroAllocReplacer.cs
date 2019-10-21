@@ -1,7 +1,7 @@
 using System;
-using zero_alloc;
+using TextExtensions;
 
-namespace Methods
+namespace zero_alloc.benchmark
 {
     public class ZeroAllocReplacer
     {
@@ -12,17 +12,17 @@ namespace Methods
         /// <param name="token">Token to transform.</param>
         public delegate Span<char> TransformDelegate(Span<char> destination, ReadOnlySpan<char> token);
 
-        private TransformDelegate _transform;
+        private readonly TransformDelegate _transform;
         
         public ZeroAllocReplacer(TransformDelegate transform)
         {
             _transform = transform;
         }
 
-        public void Replace(ReadOnlySpan<char> source, Memory<char> buf)
+        public void Replace(Memory<char> destination, ReadOnlySpan<char> source)
         {
-            var rest = buf.Span;
-            var splitter = new SplitterExtensions.SplitEnumerator(source);
+            var rest = destination.Span;
+            var splitter = source.Split(' ');
             while (splitter.MoveNext())
             {
                 var range = splitter.Current;

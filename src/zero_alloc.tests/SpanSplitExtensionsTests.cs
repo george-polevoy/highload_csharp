@@ -1,12 +1,11 @@
 using System;
-using Xunit;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel.Engine.ClientProtocol;
+using Xunit;
 
-namespace zero_alloc.tests
+namespace TextExtensions
 {
-    public class UnitTest1
+    public class SpanSplitExtensionsTests
     {
         [Theory]
         [InlineData("", "()")]
@@ -18,7 +17,7 @@ namespace zero_alloc.tests
         [InlineData(" a", "(), (a)")]
         [InlineData("a ", "(a), ()")]
         [InlineData(" a ", "(), (a), ()")]
-        public void Test1(string source, string expected)
+        public void SplitsToRanges(string source, string expected)
         {
             var actual = Split(source);
 
@@ -35,7 +34,7 @@ namespace zero_alloc.tests
         private static IReadOnlyList<string> Split(string source)
         {
             var l = new List<string>(100);
-            var split = new SplitterExtensions.SplitEnumerator(source.AsSpan());
+            var split = source.AsSpan().Split(' ');
             while (split.MoveNext())
             {
                 var (begin, end) = split.Current;
