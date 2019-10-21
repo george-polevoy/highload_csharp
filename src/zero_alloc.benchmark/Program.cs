@@ -16,7 +16,7 @@ using System.Threading;
         const int NumJobs = 500;
         private int _numJobsLeft;
 
-        double correlation_factor = 1.94;
+        double correlation_factor = 2.144;
 
         [Params(1, 2, 4, 8, 16, 32)]
         public int NumThreads { get; set; }
