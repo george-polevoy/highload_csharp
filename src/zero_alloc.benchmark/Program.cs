@@ -18,7 +18,7 @@ using System.Threading;
 
         double correlation_factor = 2.11;
 
-        [Params(1, 2, 3, 4)]
+        [Params(1, 2, 3, 4, 5, 6, 7, 8)]
         public int NumThreads { get; set; }
         private IReplace NaiveReplacer;
         private IReplace NaiveReplacer2;
