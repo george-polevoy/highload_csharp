@@ -4,27 +4,42 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Environments;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Toolchains.CsProj;
 using TextExtensions;
 
 namespace zero_alloc.benchmark
 {
+    public class Config : ManualConfig
+    {
+        public Config()
+        {
+            Add(Job.ShortRun
+                .With(Runtime.Core)
+                .With(CsProjCoreToolchain.NetCoreApp30));
+        }
+    }
     [RPlotExporter]
     [RankColumn]
     [MemoryDiagnoser]
-    [ShortRunJob]
+    [GcServer(true)]
+    [GcConcurrent(false)]
+    [Config(typeof(Config))]
     public class ReplacerBenchmark
     {
         private const int NumWords = 64;
         private const int PercentReplaced = 50;
-        private const int JobSize = 500;
-        private const int NumJobs = 500;
+        private const int JobSize = 10000;
+        private const int NumJobs = 1000;
         private NaiveReplacer _naiveReplacer;
         private int _numJobsLeft;
         private string _source;
         private ReadOnlyMemory<char> _sourceMemory;
         private ZeroAllocReplacer _zeroAllocReplacer;
 
-        [Params(1, 2, 3, 4, 5, 6, 7, 8)] public int NumThreads { get; set; }
+        [Params(1, 2, 4, 8, 16, 32, 64)] public int NumThreads { get; set; }
 
         [GlobalSetup]
         public void Setup()
@@ -53,6 +68,11 @@ namespace zero_alloc.benchmark
                 return dst;
             });
             _numJobsLeft = NumJobs;
+        }
+
+        [GlobalCleanup]
+        public void Cleanup()
+        {
         }
 
         [Benchmark(Baseline = true)]
@@ -107,13 +127,14 @@ namespace zero_alloc.benchmark
                 {
                     T last = default;
                     var buffer = new Memory<char>(new char[1024 * 100]);
-                    var realJobSize = JobSize;
                     while (Interlocked.Decrement(ref _numJobsLeft) > 0)
-                        for (var i = 0; i < realJobSize; i++)
+                    {
+                        for (var i = 0; i < JobSize; i++)
                         {
                             last = func(buffer);
                             GC.KeepAlive(last);
                         }
+                    }
 
                     return last;
                 }, TaskCreationOptions.LongRunning)).ToArray();
