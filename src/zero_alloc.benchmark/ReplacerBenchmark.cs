@@ -25,7 +25,7 @@ namespace zero_alloc.benchmark
     [RankColumn]
     [MemoryDiagnoser]
     [GcServer(true)]
-    [GcConcurrent(false)]
+    [GcConcurrent(true)]
     [Config(typeof(Config))]
     public class ReplacerBenchmark
     {
