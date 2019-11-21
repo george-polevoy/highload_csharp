@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
+using ZeroAlloc;
+using ZeroAlloc.Text;
 
 namespace zero_alloc.benchmark
 {

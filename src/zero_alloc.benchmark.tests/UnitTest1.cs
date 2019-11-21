@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-using TextExtensions;
 using Xunit;
+using ZeroAlloc.EnumeratorLinq;
 using ZeroAlloc.Linq;
 
 namespace zero_alloc.benchmark.tests
@@ -79,24 +78,6 @@ namespace zero_alloc.benchmark.tests
             }
         }
 
-        [Fact]
-        public void CanEnumerateOmniList()
-        {
-            var expected = new[] {1, 2, 3};
-
-            var actual = new List<int>();
-            var source = expected.ToList();
-
-            var enumerator = source.Omni(0).GetEnumerator();
-            while (enumerator.MoveNext())
-            {
-                actual.Add(enumerator.Current);
-            }
-
-            Assert.Equal(expected, actual);
-        }
-
-
         [Theory]
         [InlineData(new[] {1}, new double[] {1})]
         [InlineData(new[] {2, 3}, new double[] {4, 9})]
@@ -105,7 +86,7 @@ namespace zero_alloc.benchmark.tests
             var actual = new List<double>();
             var sourceList = source.ToList();
             using var e = sourceList.GetEnumerator();
-            var sel = e.Select1(2, (int power, int x) => Math.Pow(x, power));
+            var sel = e.RefSelect(2, (int power, int x) => Math.Pow(x, power));
             while (sel.MoveNext())
             {
                 actual.Add(sel.Current);
@@ -116,47 +97,22 @@ namespace zero_alloc.benchmark.tests
 
         [Theory]
         [InlineData(new[] {1}, new double[] {1})]
-        [InlineData(new[] {2, 3}, new double[] {4, 9})]
-        public void CanSelectWithProvider(int[] source, double[] expected)
-        {
-            var actual = new List<double>();
-            var sourceList = source.ToList();
-            var sel = sourceList.SelectWithProvider(2, (int power, int x) => Math.Pow(x, power));
-            foreach (var i in sel)
-            {
-                actual.Add(i);
-            }
-
-            Assert.Equal(expected, actual);
-        }
-
-        [Theory]
-        [InlineData(new[] {1}, new double[] {1})]
-        [InlineData(new[] {2, 3}, new double[] {4, 9})]
+        [InlineData(new[] {2, 3}, new double[] {9})]
         public void CanSelectWithSpan(int[] source, double[] expected)
         {
             var actual = new List<double>();
             var sourceSpan = source.AsSpan();
-
-            // I could use a `var`, just for illustration here.
-            SpanPipelineFixedPoint<int, string, long,
-                SpanPipelineFixedPoint<int, double, string,
-                    SpanPipelineFixedPoint<int, int, double,
-                        SpanPipelineBuilder<int>>>> pipelineValue;
-
-            pipelineValue = SpanLinq
+            
+            var pipeline = SpanLinq
                 .StartWith<int>()
                 .Select(x => Math.Pow(x, 2))
                 .Select(x => x.ToString(CultureInfo.CurrentCulture))
+                .Where(x => x != "4")
                 .Select(s => long.Parse(s));
-            
-            // Boxing. This step is not necessary, but can be useful for passing around large struct.
-            ISpanPipeline<int, long> pipelineInterface = pipelineValue;
-            
-            var spanEnumerator = sourceSpan.GetEnumerator();
-            while (pipelineValue.MoveNext(ref spanEnumerator))
+
+            foreach (var x in sourceSpan.Apply(pipeline))
             {
-                actual.Add(pipelineValue.GetCurrent(ref spanEnumerator));
+                actual.Add(x);
             }
 
             Assert.Equal(expected, actual);

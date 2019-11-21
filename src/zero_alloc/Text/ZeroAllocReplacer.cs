@@ -1,7 +1,6 @@
 using System;
-using TextExtensions;
 
-namespace zero_alloc.benchmark
+namespace ZeroAlloc.Text
 {
     public class ZeroAllocReplacer
     {

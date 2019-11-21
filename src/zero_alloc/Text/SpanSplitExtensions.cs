@@ -1,6 +1,6 @@
 using System;
 
-namespace TextExtensions
+namespace ZeroAlloc.Text
 {
     public static class SpanSplitExtensions
     {
