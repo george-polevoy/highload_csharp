@@ -43,6 +43,6 @@ namespace TextExtensions
             return true;
         }
 
-        public (int Begin, int End) Current => (_begin, _end);
+        public Range Current => new Range(_begin, _end);
     }
 }

@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "zero_alloc.tests", "src\zer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "zero_alloc.benchmark", "src\zero_alloc.benchmark\zero_alloc.benchmark.csproj", "{1546D9F6-F2FB-427B-9440-21F084DE07E8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "zero_alloc.benchmark.tests", "src\zero_alloc.benchmark.tests\zero_alloc.benchmark.tests.csproj", "{C3411180-E659-4DA3-82E9-94A0ED8C7E27}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,10 +62,23 @@ Global
 		{1546D9F6-F2FB-427B-9440-21F084DE07E8}.Release|x64.Build.0 = Release|Any CPU
 		{1546D9F6-F2FB-427B-9440-21F084DE07E8}.Release|x86.ActiveCfg = Release|Any CPU
 		{1546D9F6-F2FB-427B-9440-21F084DE07E8}.Release|x86.Build.0 = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|x64.Build.0 = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Debug|x86.Build.0 = Debug|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|x64.ActiveCfg = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|x64.Build.0 = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|x86.ActiveCfg = Release|Any CPU
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A556CA84-A32B-46F6-A768-7B653A9DAD65} = {25199C1A-090C-40C6-B009-4BA5DFE80A80}
 		{727D05E1-2297-4CD3-9851-270C5F36AA59} = {25199C1A-090C-40C6-B009-4BA5DFE80A80}
 		{1546D9F6-F2FB-427B-9440-21F084DE07E8} = {25199C1A-090C-40C6-B009-4BA5DFE80A80}
+		{C3411180-E659-4DA3-82E9-94A0ED8C7E27} = {25199C1A-090C-40C6-B009-4BA5DFE80A80}
 	EndGlobalSection
 EndGlobal

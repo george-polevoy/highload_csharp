@@ -10,7 +10,7 @@ namespace zero_alloc.benchmark
         /// </summary>
         /// <param name="destination">Destination to write to.</param>
         /// <param name="token">Token to transform.</param>
-        public delegate Span<char> TransformDelegate(Span<char> destination, ReadOnlySpan<char> token);
+        public delegate void TransformDelegate(Span<char> destination, ReadOnlySpan<char> token, out int replacementLength);
 
         private readonly TransformDelegate _transform;
         
@@ -19,16 +19,21 @@ namespace zero_alloc.benchmark
             _transform = transform;
         }
 
-        public void Replace(Memory<char> destination, ReadOnlySpan<char> source)
+        public void Replace(Span<char> destination, ReadOnlySpan<char> source, out int replacementLength)
         {
-            var rest = destination.Span;
-            var splitter = source.Split(' ');
-            while (splitter.MoveNext())
+            var length = 0;
+            bool subsequent = false;
+            foreach(var tokenRange in source.Split(' '))
             {
-                var range = splitter.Current;
-                var token = source[range.Begin..range.End];
-                rest = _transform(rest, token);
+                if (subsequent)
+                    destination[length++] = ' ';
+                else
+                    subsequent = true;
+
+                _transform(destination[length..], source[tokenRange], out var step);
+                length += step;
             }
+            replacementLength = length;
         }
     }
 }

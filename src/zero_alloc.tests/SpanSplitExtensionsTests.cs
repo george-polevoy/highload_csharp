@@ -20,25 +20,21 @@ namespace TextExtensions
         public void SplitsToRanges(string source, string expected)
         {
             var actual = Split(source);
-
             var actualRepresentation = MakeTestRepresentation(actual);
-
             Assert.Equal(expected, actualRepresentation);
         }
 
-        private static string MakeTestRepresentation(IReadOnlyList<string> source)
+        private static string MakeTestRepresentation(IEnumerable<string> source)
         {
             return string.Join(", ", source.Select(i => $"({i})"));
         }
 
         private static IReadOnlyList<string> Split(string source)
         {
-            var l = new List<string>(100);
-            var split = source.AsSpan().Split(' ');
-            while (split.MoveNext())
+            var l = new List<string>(5);
+            foreach (var token in source.AsSpan().Split(' '))
             {
-                var (begin, end) = split.Current;
-                l.Add(source.Substring(begin, end - begin));
+                l.Add(source[token]);
             }
             return l;
         }

@@ -7,11 +7,6 @@ namespace zero_alloc.benchmark
     {
         static void Main(string[] args)
         {
-            // apply memory pressure to force more often GC.
-            // as reported by linux `free` command.
-            var freeKib = 31547284;
-            var allowedKib = 300_000;
-            GC.AddMemoryPressure((freeKib - allowedKib) * 1024);
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
