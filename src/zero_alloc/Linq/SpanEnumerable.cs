@@ -5,6 +5,7 @@ namespace ZeroAlloc.Linq
 {
     public ref struct SpanEnumerable<TStart1, TStart2, T, TCombinationInterceptor, TState>
         where TCombinationInterceptor : ISpanPipeline<TStart1, TStart2>
+        where TState : IDelegatePipeline<TStart1, TStart2, T, TCombinationInterceptor>
     {
         private SpanPipelineFixedPoint<TStart1, TStart2, T, TCombinationInterceptor, TState> _pipeline;
         private Span<TStart1> _source;
