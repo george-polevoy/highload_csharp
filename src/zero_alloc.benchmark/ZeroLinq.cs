@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.Attributes;
 using ZeroAlloc.Linq;
+using ZeroAlloc.Linq.Boost;
 
 namespace zero_alloc.benchmark
 {
@@ -12,60 +13,128 @@ namespace zero_alloc.benchmark
     public class ZeroLinq
     {
         private const long Iterations = 1_000;
-        [Params(1, 2, 8, 16, 32)] public long N;
+        [Params(1, 2, 32)] public long N;
         private List<long> _list;
 
         [GlobalSetup]
         public void GlobalSetup() => _list = Enumerable.Repeat(1, (int) N).Select(i => (long) i).ToList();
 
         [Benchmark(Baseline = true)]
-        public long None()
+        public long SpanForeach()
         {
             long s = 0;
             Span<long> source = stackalloc long[(int) N];
             for (long i = 0; i < Iterations; i++)
                 foreach (var x in source)
-                    s += 1 + x + 2 + x;
+                    s += 1 + x + 2;
             return s;
         }
+        
+        [Benchmark]
+        public long ListForeach()
+        {
+            long s = 0;
+            var source = _list;
+            for (long i = 0; i < Iterations; i++)
+                foreach (var x in source)
+                    s += 1 + x + 2;
+            return s;
+        }
+        
+        [Benchmark]
+        public long SpanBoostLinqFactored()
+        {
+            var s = 0L;
+            Span<long> source = stackalloc long[(int) N];
+            var pipeline = SpanLinq.StartWith<long>()
+                .Select(Arg.Long + 1)
+                .Select(Arg.Long + 2);
 
+            var spanEnumerable = source.Apply(pipeline);
+            
+            for (var i = 0L; i < Iterations; i++)
+            {
+                foreach (var x in spanEnumerable)
+                    s += x;
+            }
+
+            return s;
+        }
+        
+        [Benchmark]
+        public long SpanBoost2LinqFactored()
+        {
+            var s = 0L;
+            Span<long> source = stackalloc long[(int) N];
+            
+            var selector = Operations.Plus(
+                Operations.Plus(
+                    Operations.Param<long>(),
+                    Operations.Const<long, long>(1)),
+                Operations.Const<long, long>(2)
+            );
+            
+            var pipeline = SpanLinq.StartWith<long>()
+                .Select(
+                    selector
+                );
+            
+            var spanEnumerable = source.Apply(pipeline);
+            
+            for (var i = 0L; i < Iterations; i++)
+            {
+                foreach (var x in spanEnumerable)
+                    s += x;
+            }
+
+            return s;
+        }
+        
         /// <summary>
         /// SpanEnumeratorCheat factors pipeline initialization out of the loop.
         /// </summary>
         /// <returns></returns>
         [Benchmark]
-        public long SpanEnumeratorCheat()
+        public long SpanLinqFactored()
         {
             var s = 0L;
-            Span<int> source = stackalloc int[(int) N];
-            var pipeline = SpanLinq.StartWith<int>()
-                .Select(i => i + 1)
-                .Select(i => 2 + i);
-
+            Span<long> source = stackalloc long[(int) N];
+            var pipeline = SpanLinq.StartWith<long>()
+                .Select(x => x + 1)
+                .Select(x => 2 + x);
+            
+            var spanEnumerable = source.Apply(pipeline);
+            
             for (var i = 0L; i < Iterations; i++)
-                foreach (var x in source.Apply(pipeline))
+            {
+                foreach (var x in spanEnumerable)
                     s += x;
+            }
+
             return s;
         }
 
         [Benchmark]
-        public long SpanEnumeratorFair()
+        public long SpanLinqFair()
         {
             var s = 0L;
-            Span<int> source = stackalloc int[(int) N];
+            Span<long> source = stackalloc long[(int) N];
 
             for (var i = 0L; i < Iterations; i++)
+            {
+                var pipeline = SpanLinq.StartWith<long>()
+                    .Select(x => x + 1)
+                    .Select(x => 2 + x);
                 foreach (var x in source.Apply(
-                    SpanLinq.StartWith<int>()
-                        .Select(i1 => i1 + 1)
-                        .Select(i2 => 2 + i2)))
+                    pipeline))
                     s += x;
+            }
 
             return s;
         }
 
         [Benchmark]
-        public long List()
+        public long ListLinq()
         {
             long s = 0;
             for (long i = 0; i < Iterations; i++)

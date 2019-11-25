@@ -8,6 +8,7 @@ using System.Runtime.Intrinsics.X86;
 using Xunit;
 using ZeroAlloc.EnumeratorLinq;
 using ZeroAlloc.Linq;
+using ZeroAlloc.Linq.Boost;
 
 namespace zero_alloc.benchmark.tests
 {
@@ -96,20 +97,23 @@ namespace zero_alloc.benchmark.tests
         }
 
         [Theory]
-        [InlineData(new[] {1}, new double[] {1})]
-        [InlineData(new[] {2, 3}, new double[] {9})]
-        public void CanSelectWithSpan(int[] source, double[] expected)
+        [InlineData(new long[] {0}, new double[] {1})]
+        [InlineData(new long[] {1, 2}, new double[] {9})]
+        public void CanSelectWithSpan(long[] source, double[] expected)
         {
             var actual = new List<double>();
             var sourceSpan = source.AsSpan();
-            
+
             var pipeline = SpanLinq
-                .StartWith<int>()
+                .StartWith<long>()
+                .Select(Operations.Plus(
+                    Operations.Param<long>(),
+                    Operations.Const<long, long>(1)))
                 .Select(x => Math.Pow(x, 2))
                 .Select(x => x.ToString(CultureInfo.CurrentCulture))
                 .Where(x => x != "4")
                 .Select(s => long.Parse(s));
-
+            
             foreach (var x in sourceSpan.Apply(pipeline))
             {
                 actual.Add(x);

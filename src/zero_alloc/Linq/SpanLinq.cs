@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using ZeroAlloc.Linq.Boost;
 
 namespace ZeroAlloc.Linq
 {
@@ -56,7 +57,7 @@ namespace ZeroAlloc.Linq
                     SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>>(
                     selector));
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SpanPipelineFixedPoint<TStart, TSource1, TSource1,
                 SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev,
@@ -71,71 +72,55 @@ namespace ZeroAlloc.Linq
             where TPrev : ISpanPipeline<TStart, TSource0>
             where TPrevState : IDelegatePipeline<TStart, TSource0, TSource1, TPrev>
         {
-            return new SpanPipelineFixedPoint<TStart, TSource1, TSource1, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>, DelegateWhereEngine<TStart, TSource1, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>>>(
-                sourcePipeline, new DelegateWhereEngine<TStart, TSource1, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>>(
+            return new SpanPipelineFixedPoint<TStart, TSource1, TSource1,
+                SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>, DelegateWhereEngine<TStart,
+                    TSource1, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>>>(
+                sourcePipeline,
+                new DelegateWhereEngine<TStart, TSource1,
+                    SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev, TPrevState>>(
                     predicate));
         }
-    }
-
-    public interface IDelegatePipeline<TStart, out T0, out T1, TPrev>
-        where TPrev : ISpanPipeline<TStart, T0>
-    {
-        bool MoveNext(ref Span<TStart>.Enumerator enumerator, ref TPrev prev);
-        T1 GetCurrent(ref Span<TStart>.Enumerator enumerator, ref TPrev prev);
-    }
-
-    public struct DelegateSelectEngine<TStart, T0, T1, TPrev> : IDelegatePipeline<TStart, T0, T1, TPrev>
-        where TPrev : ISpanPipeline<TStart, T0>
-    {
-        private readonly Func<T0, T1> _selector;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DelegateSelectEngine(Func<T0, T1> selector)
+        public static SpanPipelineFixedPoint<T, T, TResult, SpanPipelineBuilder<T>,
+                BoostSelectEngine<T, T, TResult, SpanPipelineBuilder<T>, TOp>>
+            Select<T, TResult, TOp>(this SpanPipelineBuilder<T> sourcePipeline, Op<TOp, T, TResult> selector)
+            where TOp : ILinqUnaryOp<T, TResult>
         {
-            _selector = selector;
+            return new SpanPipelineFixedPoint<T, T, TResult, SpanPipelineBuilder<T>,
+                BoostSelectEngine<T, T, TResult, SpanPipelineBuilder<T>, TOp>>
+            (sourcePipeline,
+                new BoostSelectEngine<T, T, TResult, SpanPipelineBuilder<T>, TOp>(selector.InnerOp)
+            );
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveNext(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
+        public static SpanPipelineFixedPoint<TStart, TSource1, TResult,
+                SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev,
+                    TPrevState>,
+                BoostSelectEngine<TStart, TSource1, TResult, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev
+                    ,
+                    TPrevState>, TOp>>
+            Select<TStart, TSource0, TSource1, TPrev, TResult, TPrevState, TOp>(
+                this SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev,
+                    TPrevState> sourcePipeline,
+                Op<TOp, TSource1, TResult> selector)
+            where TPrev : ISpanPipeline<TStart, TSource0>
+            where TPrevState : IDelegatePipeline<TStart, TSource0, TSource1, TPrev>
+            where TOp : ILinqUnaryOp<TSource1, TResult>
         {
-            return prev.MoveNext(ref enumerator);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T1 GetCurrent(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
-        {
-            return _selector(prev.GetCurrent(ref enumerator));
-        }
-    }
-    
-    public struct DelegateWhereEngine<TStart, T0, TPrev> : IDelegatePipeline<TStart, T0, T0, TPrev>
-        where TPrev : ISpanPipeline<TStart, T0>
-    {
-        private readonly Func<T0, bool> _predicate;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DelegateWhereEngine(Func<T0, bool> predicate)
-        {
-            _predicate = predicate;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveNext(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
-        {
-            while (true)
-            {
-                var innerMoved = prev.MoveNext(ref enumerator);
-                if (!innerMoved)
-                    return false;
-                if (_predicate(prev.GetCurrent(ref enumerator)))
-                    return true;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T0 GetCurrent(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
-        {
-            return prev.GetCurrent(ref enumerator);
+            return new SpanPipelineFixedPoint<TStart, TSource1, TResult,
+                SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev,
+                    TPrevState>,
+                BoostSelectEngine<TStart, TSource1, TResult, SpanPipelineFixedPoint<TStart, TSource0, TSource1, TPrev
+                    ,
+                    TPrevState>, TOp>>(
+                sourcePipeline,
+                new BoostSelectEngine<TStart, TSource1, TResult, SpanPipelineFixedPoint<TStart, TSource0, TSource1,
+                    TPrev
+                    ,
+                    TPrevState>, TOp>(
+                    selector.InnerOp));
         }
     }
 }

@@ -2,13 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 
 namespace ZeroAlloc.Linq
-{    
-    public delegate bool MoveNextDelegate<TStart, TState>(
-        ref Span<TStart>.Enumerator enumerator, ref TState state);
-
-    public delegate T GetCurrentDelegate<out T, TStart, TState>(
-        ref Span<TStart>.Enumerator enumerator, ref TState state);
-    
+{
     public struct SpanPipelineFixedPoint<TStart1, TStart2, T, TCombinationInterceptor, TState>
         : ISpanPipeline<TStart1, T>
         where TCombinationInterceptor : ISpanPipeline<TStart1, TStart2>
