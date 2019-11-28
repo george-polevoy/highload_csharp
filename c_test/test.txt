@@ -1,5 +1,0 @@
-Size of char: 1
-Size of char[2]: 2
-Size of abc: 4
-aaaa aaab aaac aaad aaae aaaf
-29

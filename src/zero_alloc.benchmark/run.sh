@@ -5,3 +5,4 @@ dotnet run -c Release --framework netcoreapp3.0 \
     --maxIterationCount 6 \
     --exporters CSV GitHub GitHub
     
+    #--runtimes netcoreapp3.0 mono \

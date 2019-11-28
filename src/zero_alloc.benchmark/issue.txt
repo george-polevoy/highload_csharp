@@ -1,0 +1,165 @@
+
+https://github.com/dotnet/csharplang/issues/2975
+https://github.com/dotnet/csharplang/milestone/15
+
+Have been working on zero-alloc/span/linq too.
+
+My own implementation is working around this limitation with functional composition, or 'open' enumerables.
+
+The idea is to create a pipeline which composes functional transformation, and only apply the span source afterwards. This can be done because this way you are not trying storing a span inside a struct, only passing it as a parameter. This last operation is delayed until the moment you are enumerating.
+This concept works not only for the span enumerables. Also, pipeline initialization has it's own overhead which now can be factored out.
+
+This also aligns with the concept of separating state and function, as you can see in new JsonWriter when used with pipelines.
+
+I think following three features should be implemented to allow completely compatible linq syntax:
+1. ref interface
+2. generic parameter inference
+3. ref struct constraint
+
+Anyway, here is what i've got.
+Current implementation can't work with outer enumerators having their own state like in the 'SelectMany', but this can be solved with also factoring out the state, just like the span is already factored out.
+
+``` C#
+        [Theory]
+        [InlineData(new[] {1}, new double[] {1})]
+        [InlineData(new[] {2, 3}, new double[] {4, 9})]
+        public void CanSelectWithSpan(int[] source, double[] expected)
+        {
+            var actual = new List<double>();
+            var sourceSpan = source.AsSpan();
+
+            // I could use a `var`, just for illustration here.
+            // SpanPipelineFixedPoint<int, string, long,
+            //    SpanPipelineFixedPoint<int, double, string,
+            //        SpanPipelineFixedPoint<int, int, double,
+            //            SpanPipelineBuilder<int>>>> pipelineValue;
+
+            var pipeline = SpanLinq
+                .StartWith<int>()
+                .Select(x => Math.Pow(x, 2))
+                .Select(x => x.ToString(CultureInfo.CurrentCulture))
+                .Select(s => long.Parse(s));
+
+            foreach (var x in sourceSpan.Apply(pipeline))
+            {
+                actual.Add(x);
+            }
+
+            Assert.Equal(expected, actual);
+        }
+```
+
+BTW here is a benchmark
+
+``` C#
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using BenchmarkDotNet.Attributes;
+using ZeroAlloc.Linq;
+
+namespace zero_alloc.benchmark
+{
+    [MemoryDiagnoser]
+    [GcConcurrent(false)]
+    [GcServer(true)]
+    public class ZeroLinq
+    {
+        private const long Iterations = 1_000;
+        [Params(1, 2, 8, 16, 32)] public long N;
+        private List<long> _list;
+
+        [GlobalSetup]
+        public void GlobalSetup() => _list = Enumerable.Repeat(1, (int) N).Select(i => (long) i).ToList();
+
+        [Benchmark(Baseline = true)]
+        public long None()
+        {
+            long s = 0;
+            Span<long> source = stackalloc long[(int) N];
+            for (long i = 0; i < Iterations; i++)
+                foreach (var x in source)
+                    s += 1 + x + 2 + x;
+            return s;
+        }
+
+        /// <summary>
+        /// SpanEnumeratorCheat factors pipeline initialization out of the loop.
+        /// </summary>
+        [Benchmark]
+        public long SpanEnumeratorCheat()
+        {
+            var s = 0L;
+            Span<int> source = stackalloc int[(int) N];
+            var pipeline = SpanLinq.StartWith<int>()
+                .Select(i => i + 1)
+                .Select(i => 2 + i);
+
+            for (var i = 0L; i < Iterations; i++)
+                foreach (var x in source.Apply(pipeline))
+                    s += x;
+            return s;
+        }
+
+        [Benchmark]
+        public long SpanEnumeratorFair()
+        {
+            var s = 0L;
+            Span<int> source = stackalloc int[(int) N];
+
+            for (var i = 0L; i < Iterations; i++)
+                foreach (var x in source.Apply(
+                    SpanLinq.StartWith<int>()
+                        .Select(i1 => i1 + 1)
+                        .Select(i2 => 2 + i2)))
+                    s += x;
+
+            return s;
+        }
+
+        [Benchmark]
+        public long List()
+        {
+            long s = 0;
+            for (long i = 0; i < Iterations; i++)
+            {
+                s = _list
+                    .Select(x => x + 1)
+                    .Select(x => 2 + x)
+                    .Sum();
+            }
+
+            return s;
+        }
+    }
+}
+```
+
+```
+|              Method |  N |       Mean |      Error |     StdDev |  Ratio | RatioSD |  Gen 0 | Gen 1 | Gen 2 | Allocated |
+|-------------------- |--- |-----------:|-----------:|-----------:|-------:|--------:|-------:|------:|------:|----------:|
+|                None |  1 |   1.036 us |  0.0197 us |  0.0051 us |   1.00 |    0.00 |      - |     - |     - |         - |
+| SpanEnumeratorCheat |  1 |  23.690 us |  1.4458 us |  0.5156 us |  22.72 |    0.32 |      - |     - |     - |         - |
+|  SpanEnumeratorFair |  1 |  39.070 us |  5.3587 us |  1.9110 us |  37.78 |    2.19 |      - |     - |     - |         - |
+|                List |  1 | 132.580 us | 37.4983 us | 13.3723 us | 125.62 |   12.53 | 3.4180 |     - |     - |  240000 B |
+|                     |    |            |            |            |        |         |        |       |       |           |
+|                None |  2 |   2.235 us |  0.4090 us |  0.1459 us |   1.00 |    0.00 |      - |     - |     - |         - |
+| SpanEnumeratorCheat |  2 |  30.078 us |  1.6073 us |  0.5732 us |  13.50 |    0.78 |      - |     - |     - |         - |
+|  SpanEnumeratorFair |  2 |  44.591 us |  6.5741 us |  2.3444 us |  20.05 |    2.01 |      - |     - |     - |         - |
+|                List |  2 | 124.831 us |  1.9446 us |  0.3009 us |  55.26 |    4.26 | 3.4180 |     - |     - |  240000 B |
+|                     |    |            |            |            |        |         |        |       |       |           |
+|                None |  8 |   8.214 us |  0.1311 us |  0.0467 us |   1.00 |    0.00 |      - |     - |     - |         - |
+| SpanEnumeratorCheat |  8 |  69.564 us |  3.5873 us |  1.2793 us |   8.47 |    0.12 |      - |     - |     - |         - |
+|  SpanEnumeratorFair |  8 |  96.493 us | 19.1766 us |  6.8386 us |  11.75 |    0.83 |      - |     - |     - |         - |
+|                List |  8 | 196.110 us |  2.6246 us |  0.1439 us |  23.85 |    0.21 | 3.4180 |     - |     - |  240000 B |
+|                     |    |            |            |            |        |         |        |       |       |           |
+|                None | 16 |  19.285 us |  3.8082 us |  1.3581 us |   1.00 |    0.00 |      - |     - |     - |         - |
+| SpanEnumeratorCheat | 16 | 153.755 us | 36.3604 us | 12.9665 us |   8.00 |    0.83 |      - |     - |     - |         - |
+|  SpanEnumeratorFair | 16 | 139.316 us |  9.0657 us |  3.2329 us |   7.26 |    0.67 |      - |     - |     - |         - |
+|                List | 16 | 296.409 us | 48.2879 us | 17.2199 us |  15.45 |    1.67 | 3.4180 |     - |     - |  240000 B |
+|                     |    |            |            |            |        |         |        |       |       |           |
+|                None | 32 |  36.105 us |  9.7512 us |  3.4774 us |   1.00 |    0.00 |      - |     - |     - |         - |
+| SpanEnumeratorCheat | 32 | 245.290 us | 51.3134 us | 18.2988 us |   6.87 |    1.04 |      - |     - |     - |         - |
+|  SpanEnumeratorFair | 32 | 257.371 us | 52.6925 us | 18.7906 us |   7.20 |    1.04 |      - |     - |     - |         - |
+|                List | 32 | 428.765 us | 13.3596 us |  4.7642 us |  11.97 |    1.13 | 3.4180 |     - |     - |  240000 B |
+```
