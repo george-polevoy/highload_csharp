@@ -15,7 +15,6 @@ namespace zero_alloc.benchmark
     [MemoryDiagnoser]
     [GcConcurrent(false)]
     [GcServer(true)]
-    [MonoJob]
     public class ZeroLinq
     {
         private const long Iterations = 1_024;
