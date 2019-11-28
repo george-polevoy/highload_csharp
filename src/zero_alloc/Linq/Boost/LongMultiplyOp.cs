@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace ZeroAlloc.Linq.Boost
 {
-    public struct LongMultiplyOp<TLhs> : ILinqUnaryOp<long, long>
-        where TLhs : ILinqUnaryOp<long, long>
+    public struct LongMultiplyOp<TLhs, TSelectorState> : ILinqUnaryOp<long, long, TSelectorState>
+        where TLhs : ILinqUnaryOp<long, long, TSelectorState>
     {
         private readonly long _rhs;
         private readonly TLhs _lhs;
@@ -16,9 +16,9 @@ namespace ZeroAlloc.Linq.Boost
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long Invoke(long arg)
+        public long Invoke(long arg, ref TSelectorState state)
         {
-            return _lhs.Invoke(arg) + _rhs;
+            return _lhs.Invoke(arg, ref state) + _rhs;
         }
     }
 }

@@ -1,7 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Environments;
+using BenchmarkDotNet.Jobs;
 using ZeroAlloc.Linq;
 using ZeroAlloc.Linq.Boost;
 
@@ -10,10 +15,11 @@ namespace zero_alloc.benchmark
     [MemoryDiagnoser]
     [GcConcurrent(false)]
     [GcServer(true)]
+    [MonoJob]
     public class ZeroLinq
     {
-        private const long Iterations = 1_000;
-        [Params(1, 2, 32)] public long N;
+        private const long Iterations = 1_024;
+        [Params(1, 2, 128)] public long N;
         private List<long> _list;
 
         [GlobalSetup]
@@ -29,7 +35,7 @@ namespace zero_alloc.benchmark
                     s += 1 + x + 2;
             return s;
         }
-        
+
         [Benchmark]
         public long ListForeach()
         {
@@ -40,18 +46,32 @@ namespace zero_alloc.benchmark
                     s += 1 + x + 2;
             return s;
         }
-        
+
+        struct None
+        {
+        }
+
+        struct CustomSelector : ILinqUnaryOp<long, long, None>
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public long Invoke(long arg, ref None state)
+            {
+                return arg + 1 + 2;
+            }
+        }
+
         [Benchmark]
-        public long SpanBoostLinqFactored()
+        public long SpanValueFuncFactored()
         {
             var s = 0L;
             Span<long> source = stackalloc long[(int) N];
-            var pipeline = SpanLinq.StartWith<long>()
-                .Select(Arg.Long + 1)
-                .Select(Arg.Long + 2);
+            var builder = SpanLinq.StartWith<long, None>();
 
-            var spanEnumerable = source.Apply(pipeline);
-            
+            var pipeline = builder.Select(
+                builder.FromOperation(new CustomSelector(), 0L));
+
+            var spanEnumerable = source.Apply(pipeline, new None());
+
             for (var i = 0L; i < Iterations; i++)
             {
                 foreach (var x in spanEnumerable)
@@ -60,27 +80,23 @@ namespace zero_alloc.benchmark
 
             return s;
         }
-        
+
         [Benchmark]
         public long SpanBoost2LinqFactored()
         {
             var s = 0L;
             Span<long> source = stackalloc long[(int) N];
-            
-            var selector = Operations.Plus(
-                Operations.Plus(
-                    Operations.Param<long>(),
-                    Operations.Const<long, long>(1)),
-                Operations.Const<long, long>(2)
+            var builder = SpanLinq.StartWith<long, None>();
+            var o = builder.Operations();
+            var selector = o.Plus(
+                o.Plus(
+                    o.Param<long>(),
+                    o.Const<long, long>(1)),
+                o.Const<long, long>(2)
             );
-            
-            var pipeline = SpanLinq.StartWith<long>()
-                .Select(
-                    selector
-                );
-            
-            var spanEnumerable = source.Apply(pipeline);
-            
+
+            var pipeline = builder.Select(selector);
+            var spanEnumerable = source.Apply(pipeline, new None());
             for (var i = 0L; i < Iterations; i++)
             {
                 foreach (var x in spanEnumerable)
@@ -89,7 +105,48 @@ namespace zero_alloc.benchmark
 
             return s;
         }
-        
+
+        [Benchmark]
+        public long SpanBoostLinqFactored()
+        {
+            var s = 0L;
+            Span<long> source = stackalloc long[(int) N];
+            var builder = SpanLinq.StartWith<long, None>();
+            var o = builder.Operations();
+
+            var plusA = o.Plus(
+                o.Param<long>(),
+                o.Const<long, long>(1));
+            var plusB = o.Plus(
+                o.Param<long>(),
+                o.Const<long, long>(2));
+
+            SpanPipelineFixedPoint<long, long, long,
+                SpanPipelineFixedPoint<long, long, long, SpanPipelineBuilder<long, None>, BoostSelectEngine<long, long,
+                    long, SpanPipelineBuilder<long, None>,
+                    LongPlusLong<long, Param<long, None>, Const<long, long, None>, None>, None>, None>,
+                BoostSelectEngine<long, long, long, SpanPipelineFixedPoint<long, long, long,
+                        SpanPipelineBuilder<long, None>,
+                        BoostSelectEngine<long, long, long, SpanPipelineBuilder<long, None>,
+                            LongPlusLong<long, Param<long, None>, Const<long, long, None>, None>, None>, None>,
+                    LongPlusLong<long, Param<long, None>, Const<long, long, None>, None>, None>, None> pipeline;
+            
+            
+            pipeline = builder
+                .Select(plusA)
+                .Select(plusB);
+
+            var spanEnumerable = source.Apply(pipeline, new None());
+
+            for (var i = 0L; i < Iterations; i++)
+            {
+                foreach (var x in spanEnumerable)
+                    s += x;
+            }
+
+            return s;
+        }
+
         /// <summary>
         /// SpanEnumeratorCheat factors pipeline initialization out of the loop.
         /// </summary>
@@ -99,19 +156,25 @@ namespace zero_alloc.benchmark
         {
             var s = 0L;
             Span<long> source = stackalloc long[(int) N];
-            var pipeline = SpanLinq.StartWith<long>()
-                .Select(x => x + 1)
-                .Select(x => 2 + x);
-            
-            var spanEnumerable = source.Apply(pipeline);
-            
+            var pipeline = SpanLinq.StartWith<long, (long a, long b)>()
+                .Select((state, x) => x + state.a)
+                .Select((state, x) => x + state.b);
+
+            var spanEnumerable = source.Apply(pipeline, (a: 1, b: 2));
+
             for (var i = 0L; i < Iterations; i++)
             {
                 foreach (var x in spanEnumerable)
                     s += x;
             }
-
+            
             return s;
+        }
+
+        IEnumerable<long> GetItems()
+        {
+            yield return 1;
+            yield return 2;
         }
 
         [Benchmark]
@@ -122,11 +185,11 @@ namespace zero_alloc.benchmark
 
             for (var i = 0L; i < Iterations; i++)
             {
-                var pipeline = SpanLinq.StartWith<long>()
-                    .Select(x => x + 1)
-                    .Select(x => 2 + x);
+                var pipeline = SpanLinq.StartWith<long, (long a, long b)>()
+                    .Select((state, x) => x + state.a)
+                    .Select((state, x) => x + state.b);
                 foreach (var x in source.Apply(
-                    pipeline))
+                    pipeline, (1, 2)))
                     s += x;
             }
 
@@ -139,9 +202,11 @@ namespace zero_alloc.benchmark
             long s = 0;
             for (long i = 0; i < Iterations; i++)
             {
+                var a = 1L;
+                var b = 2L;
                 s = _list
-                    .Select(x => x + 1)
-                    .Select(x => 2 + x)
+                    .Select(x => x + a)
+                    .Select(x => 2 + b)
                     .Sum();
             }
 

@@ -3,9 +3,9 @@ using System.Runtime.CompilerServices;
 
 namespace ZeroAlloc.Linq.Boost
 {
-    public struct BoostSelectEngine<TStart, T0, T1, TPrev, TOp> : IDelegatePipeline<TStart, T0, T1, TPrev>
-        where TPrev : ISpanPipeline<TStart, T0>
-        where TOp : ILinqUnaryOp<T0, T1>
+    public struct BoostSelectEngine<TStart, T0, T1, TPrev, TOp, TSelectorState> : IDelegatePipeline<TStart, T0, T1, TPrev, TSelectorState>
+        where TPrev : ISpanPipeline<TStart, T0, TSelectorState>
+        where TOp : ILinqUnaryOp<T0, T1, TSelectorState>
     {
         private readonly TOp _selector;
 
@@ -16,15 +16,15 @@ namespace ZeroAlloc.Linq.Boost
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveNext(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
+        public bool MoveNext(ref Span<TStart>.Enumerator enumerator, TPrev prev, ref TSelectorState state)
         {
-            return prev.MoveNext(ref enumerator);
+            return prev.MoveNext(ref enumerator, ref state);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T1 GetCurrent(ref Span<TStart>.Enumerator enumerator, ref TPrev prev)
+        public T1 GetCurrent(ref Span<TStart>.Enumerator enumerator, TPrev prev, ref TSelectorState state)
         {
-            return _selector.Invoke(prev.GetCurrent(ref enumerator));
+            return _selector.Invoke(prev.GetCurrent(ref enumerator, ref state), ref state);
         }
     }
 }
