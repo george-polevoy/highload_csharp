@@ -106,7 +106,7 @@ namespace zero_alloc.benchmark
             return s;
         }
         
-        [Benchmark(Baseline = true)]
+        [Benchmark]
         public long ArrayFor()
         {
             var s = 0L;
