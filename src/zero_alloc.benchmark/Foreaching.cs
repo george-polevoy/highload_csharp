@@ -56,7 +56,7 @@ namespace zero_alloc.benchmark
             return s;
         }
         
-        [Benchmark(Baseline = true)]
+        [Benchmark]
         public long ArrayAsSpanForeach()
         {
             var s = 0L;
@@ -67,6 +67,55 @@ namespace zero_alloc.benchmark
                 foreach (var x in span)
                 {
                     s += x;
+                }
+            }
+            
+            return s;
+        }
+        
+        [Benchmark(Baseline = true)]
+        public long SpanForeach()
+        {
+            var span = _array.AsSpan();
+            var s = 0L;
+            for (var i = 0; i < Iterations; i++)
+            {
+                s = 0;
+                foreach (var x in span)
+                {
+                    s += x;
+                }
+            }
+            
+            return s;
+        }
+        
+        [Benchmark]
+        public long ArrayForeach()
+        {
+            var s = 0L;
+            for (var i = 0; i < Iterations; i++)
+            {
+                s = 0;
+                foreach (var x in _array)
+                {
+                    s += x;
+                }
+            }
+            
+            return s;
+        }
+        
+        [Benchmark(Baseline = true)]
+        public long ArrayFor()
+        {
+            var s = 0L;
+            for (var i = 0; i < Iterations; i++)
+            {
+                s = 0;
+                for (var j = 0; j < _array.Length; j++)
+                {
+                    s += _array[j];
                 }
             }
             
