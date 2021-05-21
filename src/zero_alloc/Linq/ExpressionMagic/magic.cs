@@ -13,7 +13,10 @@ namespace ZeroAlloc.Linq.ExpressionMagic
         public void Do<T, TResult>(Span<T> source, Func<
             Expression<Func<IEnumerable<T>, IEnumerable<TResult>>>> expressionFactory)
         {
-            //var existing = _delegates.GetOrAdd(expressionFactory.Method.MethodHandle, h => );
+            var d = _delegates.GetOrAdd(expressionFactory.Method.MethodHandle, h => expressionFactory().Compile());
+            var f = (Func<IEnumerable<T>, IEnumerable<TResult>>) d;
+            
+            // in progress..
         }
 
         public void Do()
@@ -24,8 +27,6 @@ namespace ZeroAlloc.Linq.ExpressionMagic
                 .Select(x => x + 2)
                 .Select(x => x + 3)
                 .Select(x => x + 4));
-
-            Expression.Block();
         }
     }
 }
